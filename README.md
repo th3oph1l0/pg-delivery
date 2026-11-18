@@ -52,7 +52,7 @@ O **PG Delivery** é uma plataforma de delivery pensada para começar numa cidad
 |:---:|---|---|---|---|
 | 📱 | **App do Cliente** | Quem está com fome | Flutter 3 | ✅ Home, sacola, checkout PIX e tracking |
 | 🛵 | **App do Entregador** | Quem entrega | Flutter 3 (reaproveita o `core/` do cliente) | 🗓️ Planejado no MVP |
-| 🏪 | **Painel do Restaurante** | Quem cozinha | Next.js 15 | ✅ Dashboard e kanban de pedidos · 🚧 cardápio |
+| 🏪 | **Painel do Restaurante** | Quem cozinha | Next.js 15 | ✅ Dashboard, kanban de pedidos e promoções · 🚧 cardápio |
 | 🛡️ | **Admin Master** | Quem opera a plataforma | Next.js 15 | 🗓️ Planejado no MVP |
 
 ### Destaques
@@ -97,7 +97,7 @@ O **PG Delivery** é uma plataforma de delivery pensada para começar numa cidad
 
 ## 🚀 Rodar em 1 minuto
 
-O painel web tem um **modo demonstração** com dados de exemplo. Você não precisa de banco, Docker nem backend:
+O painel web tem um **modo demonstração** com dados de exemplo. Você não precisa de banco, Docker nem backend, só do **Node.js 22+**:
 
 ```bash
 git clone https://github.com/th3oph1l0/pg-delivery.git
@@ -108,6 +108,13 @@ npm run dev
 ```
 
 Abra **http://localhost:3001/dashboard** e pronto. 🎉
+
+| Página | Endereço |
+|---|---|
+| 📊 Painel | http://localhost:3001/dashboard |
+| 🧾 Pedidos (kanban) | http://localhost:3001/orders |
+| 🎟️ Promoções | http://localhost:3001/promotions |
+| 🍔 Cardápio (em construção) | http://localhost:3001/menu |
 
 > [!TIP]
 > No modo demonstração não há login: todas as páginas do painel ficam liberadas. Para usar a API de verdade, troque `NEXT_PUBLIC_DEMO` para `false` e suba o ambiente completo abaixo.
@@ -393,10 +400,12 @@ timeline
 - [x] Backend: auth, catálogo, tracking em tempo real e health check
 - [x] Painel: dashboard com indicadores e insight de IA
 - [x] Painel: kanban de pedidos
+- [x] Painel: promoções (cupons de desconto e frete grátis, filtros por situação, pausar/reativar e criação)
 - [x] App do cliente: home, sacola, checkout PIX idempotente e tracking
 - [x] Design system claro/escuro, acessível (WCAG 2.2 AA)
 - [x] Infra local (Docker Compose), Kubernetes, Terraform e pipeline de CI/CD
-- [ ] Painel: CRUD do cardápio, promoções, relatórios e financeiro
+- [ ] Painel: CRUD do cardápio, relatórios e financeiro
+- [ ] Backend: módulo de cupons (`/merchant/:rid/promotions`) para a aba de promoções
 - [ ] App do entregador
 - [ ] Admin Master
 - [ ] Integração real com gateway de pagamento
