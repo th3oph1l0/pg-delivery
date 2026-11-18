@@ -1,0 +1,127 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write # OIDC → AWS, sem chaves de longa duração
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env: { POSTGRES_USER: pg, POSTGRES_PASSWORD: pg, POSTGRES_DB: pgdelivery }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U pg" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://pg:pg@localhost:5432/pgdelivery
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/package-lock.json }
+      - run: npm ci
+      - run: npx prisma validate && npx prisma generate
+      - run: npm run typecheck
+      - run: npx jest --coverage
+      - run: npx prisma migrate deploy
+      - run: npm audit --omit=dev --audit-level=high
+      - name: SonarQube
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with: { projectBaseDir: backend }
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+        env: { NEXT_PUBLIC_DEMO: "false", NEXT_TELEMETRY_DISABLED: "1" }
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: aquasecurity/trivy-action@0.28.0
+        with: { scan-type: fs, severity: "CRITICAL,HIGH", exit-code: "1", ignore-unfixed: true }
+      - uses: bridgecrewio/checkov-action@v12
+        with: { directory: infra/terraform, quiet: true, soft_fail: false }
+
+  image:
+    if: github.ref == 'refs/heads/main'
+    needs: [backend, web, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: sa-east-1
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build, scan e push (tag = git sha)
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/pg-api:${{ github.sha }}
+        run: |
+          docker build -t "$IMAGE" backend
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.0 image --exit-code 1 --severity CRITICAL "$IMAGE"
+          docker push "$IMAGE"
+
+  deploy-staging:
+    needs: image
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: "${{ secrets.AWS_DEPLOY_ROLE_ARN }}", aws-region: sa-east-1 }
+      - name: Migrações (expand) + deploy ECS
+        run: |
+          aws ecs run-task --cluster pg-staging --task-definition pg-api-migrate --launch-type FARGATE \
+            --network-configuration "${{ secrets.STAGING_NETWORK_CONFIG }}" --overrides '{"containerOverrides":[{"name":"api","command":["npx","prisma","migrate","deploy"]}]}'
+          aws ecs update-service --cluster pg-staging --service pg-api --force-new-deployment
+          aws ecs wait services-stable --cluster pg-staging --services pg-api
+      - name: Smoke test
+        run: curl -fsS https://api.staging.pgdelivery.com.br/health/ready
+
+  deploy-prod:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production # exige aprovação manual no GitHub
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: "${{ secrets.AWS_DEPLOY_ROLE_ARN }}", aws-region: sa-east-1 }
+      - name: Blue/green via CodeDeploy (canary 10% → 100%, rollback por alarme)
+        run: aws deploy create-deployment --application-name pg-api --deployment-group-name prod --revision "${{ secrets.PROD_APPSPEC_REVISION }}"

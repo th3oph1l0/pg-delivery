@@ -1,0 +1,6 @@
+﻿# Gerados
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db
+

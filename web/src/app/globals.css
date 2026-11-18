@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+
+/* Design System "Gigante" (docs/06-design-system.md). Contrastes validados WCAG 2.2 AA. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Paleta "Apetite": vermelho ketchup + amarelo queijo + fundos creme (inspirada em apps de delivery). */
+:root {
+  --background: #ffffff;
+  --surface: #fff8f1;
+  --elevated: #ffffff;
+  --muted: #fff1e6;
+  --border: #f2e2d4;
+  --foreground: #2a1712;
+  --foreground-secondary: #6b4e43;
+  --foreground-tertiary: #7f6157;
+
+  --primary: #d91a27;
+  --primary-pressed: #b5121d;
+  --primary-foreground: #ffffff;
+  --primary-container: #fff3ef;
+  --secondary: #0e7a55;
+  --secondary-foreground: #ffffff;
+  --accent: #ffc72c;
+  --accent-foreground: #2a1712;
+  --header: #d91a27;
+  --header-foreground: #ffffff;
+
+  --success: #0e7a55;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --info: #1d4ed8;
+  --ring: #d91a27;
+}
+
+.dark {
+  --background: #1a0f0c;
+  --surface: #241612;
+  --elevated: #2e1d18;
+  --muted: #33221c;
+  --border: #47322a;
+  --foreground: #f3e6dc;
+  --foreground-secondary: #bfa89c;
+  --foreground-tertiary: #9c8579;
+
+  --primary: #ff5a5f;
+  --primary-pressed: #ff8a8a;
+  --primary-foreground: #1a0f0c;
+  --primary-container: #4a1a17;
+  --secondary: #4ade80;
+  --secondary-foreground: #1a0f0c;
+  --accent: #ffc72c;
+  --accent-foreground: #1a0f0c;
+  --header: #8e0f18;
+  --header-foreground: #ffffff;
+
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --ring: #ff5a5f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-primary: var(--primary);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --ease-gigante: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  @keyframes shimmer {
+    from { background-position: -400px 0; }
+    to { background-position: 400px 0; }
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { @apply bg-background text-foreground font-sans; font-feature-settings: 'tnum' 1; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-ring; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

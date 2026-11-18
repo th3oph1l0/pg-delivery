@@ -1,0 +1,103 @@
+# Deployment de referência (V2+ em EKS). Gerenciado via Argo CD + Kustomize overlays por ambiente.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pg-api
+  labels: { app: pg-api }
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: { app: pg-api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: pg-api }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+    spec:
+      serviceAccountName: pg-api # IRSA → acesso ao Secrets Manager/KMS
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: pg-api } }
+      containers:
+        - name: api
+          image: ACCOUNT.dkr.ecr.sa-east-1.amazonaws.com/pg-api:GIT_SHA
+          ports: [{ containerPort: 3000, name: http }]
+          envFrom:
+            - configMapRef: { name: pg-api-config }
+            - secretRef: { name: pg-api-secrets } # sincronizado pelo External Secrets Operator
+          resources:
+            requests: { cpu: 250m, memory: 384Mi }
+            limits: { memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pg-api }
+spec:
+  selector: { app: pg-api }
+  ports: [{ port: 80, targetPort: http, name: http }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: pg-api }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: pg-api }
+  minReplicas: 3
+  maxReplicas: 40
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 0, policies: [{ type: Percent, value: 100, periodSeconds: 30 }] }
+    scaleDown: { stabilizationWindowSeconds: 300 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: pg-api }
+spec:
+  minAvailable: 50%
+  selector: { matchLabels: { app: pg-api } }
+---
+# Consumidores Kafka escalam por lag (KEDA)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: { name: pg-notification-worker }
+spec:
+  scaleTargetRef: { name: pg-notification-worker }
+  minReplicaCount: 2
+  maxReplicaCount: 30
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: b-1.pg-msk.kafka.sa-east-1.amazonaws.com:9098
+        consumerGroup: notification-service
+        topic: pg.order.events
+        lagThreshold: "500"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-ingress }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
