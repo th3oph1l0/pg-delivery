@@ -91,6 +91,18 @@ O **PG Delivery** é uma plataforma de delivery pensada para começar numa cidad
       <b>Dashboard · tema escuro</b>
     </td>
   </tr>
+  <tr>
+    <td width="50%" align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/promotions-dark.png" />
+        <img src="docs/assets/promotions.png" alt="Aba de promoções com indicadores, filtros por situação e cards de cupons" />
+      </picture><br/>
+      <b>Promoções</b><br/>
+      <sub>Cupons de desconto e frete grátis com filtros por situação, pausar/reativar e criação.</sub>
+    </td>
+    <td width="50%" align="center">
+    </td>
+  </tr>
 </table>
 
 ---

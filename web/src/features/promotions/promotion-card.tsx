@@ -34,7 +34,7 @@ export function PromotionCard({ promotion: p }: { promotion: Promotion }) {
     <Card className={cn('flex flex-col gap-4 p-5', ended && 'opacity-70')}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-md bg-accent/25 text-accent-foreground" aria-hidden>
+          <span className="grid size-11 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground" aria-hidden>
             {p.type === 'FREE_DELIVERY' ? <Truck className="size-5" /> : <Ticket className="size-5" />}
           </span>
           <div className="min-w-0">

@@ -2,7 +2,7 @@
 
 import { Bell, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/stores/session-store';
@@ -14,6 +14,10 @@ export function Topbar() {
   const name = useSessionStore((s) => s.restaurantName);
   const { resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(true);
+  // O tema só é conhecido no navegador; até montar, servidor e cliente renderizam o mesmo ícone (evita erro de hidratação).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && resolvedTheme === 'dark';
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 bg-header px-6 text-header-foreground shadow-md">
@@ -40,10 +44,10 @@ export function Topbar() {
           variant="ghost"
           size="icon"
           className={onRed}
-          aria-label={resolvedTheme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
-          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+          onClick={() => setTheme(isDark ? 'light' : 'dark')}
         >
-          {resolvedTheme === 'dark' ? <Sun aria-hidden /> : <Moon aria-hidden />}
+          {isDark ? <Sun aria-hidden /> : <Moon aria-hidden />}
         </Button>
         <Button variant="ghost" size="icon" className={onRed} aria-label="Notificações">
           <Bell aria-hidden />
